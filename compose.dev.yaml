@@ -1,6 +1,8 @@
 services:
-  hyperdash:
-    build: .
+  vm21:
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: vm21
     restart: unless-stopped
     ports:
@@ -9,3 +11,6 @@ services:
       - ./server:/app/server
       - /app/node_modules
       - /var/snap/lxd/common/lxd/unix.socket:/var/snap/lxd/common/lxd/unix.socket
+    privileged: true
+    group_add:
+      - "101"

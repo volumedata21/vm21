@@ -1,22 +1,24 @@
 import React, { useState } from 'react';
-import { X, Server, Cpu, HardDrive, Zap } from 'lucide-react';
+import { X, Box, Cpu, Zap } from 'lucide-react';
 
-interface CreateVmModalProps {
+interface CreateContainerModalProps {
   onClose: () => void;
   onSubmit: (data: any) => void;
 }
 
-// VM-Specific Image List
+// Container-Specific Image List
 const AVAILABLE_IMAGES = [
-    { label: 'Ubuntu LTS: Latest', value: 'ubuntu/lts' },
+    // FIX: Remove 'images/' prefix for Ubuntu so it hits the Official Cloud Server
     { label: 'Ubuntu 24.04 LTS',   value: 'ubuntu/24.04' },
     { label: 'Ubuntu 22.04 LTS',   value: 'ubuntu/22.04' },
-    { label: 'Debian 12 (Bookworm)', value: 'images/debian/12' },
-    // Alpine VMs are tricky, but valid. Keeping it for now.
+    
+    // KEEP 'images/' for these, as they live on the Community Server
     { label: 'Alpine Linux 3.19',  value: 'images/alpine/3.19' },
+    { label: 'Debian 12 (Bookworm)', value: 'images/debian/12' },
+    { label: 'Arch Linux',         value: 'images/archlinux/current' },
 ];
 
-export const CreateVmModal: React.FC<CreateVmModalProps> = ({ onClose, onSubmit }) => {
+export const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ onClose, onSubmit }) => {
   const [selectedImage, setSelectedImage] = useState(AVAILABLE_IMAGES[0].value);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -25,11 +27,11 @@ export const CreateVmModal: React.FC<CreateVmModalProps> = ({ onClose, onSubmit 
     
     const data = {
         name: formData.get('name'),
-        type: 'VM', // <--- Hardcoded to VM
+        type: 'LXC',
         image: selectedImage,
         cpu: formData.get('cpu'),
         ram: formData.get('ram'),
-        storage: formData.get('storage')
+        storage: 10 
     };
 
     onSubmit(data);
@@ -42,18 +44,18 @@ export const CreateVmModal: React.FC<CreateVmModalProps> = ({ onClose, onSubmit 
             {/* Header */}
             <div className="p-6 border-b border-white/5 flex justify-between items-center bg-slate-900/50">
                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                    <Server className="text-cyan-400" />
-                    Provision New Virtual Machine
+                    <Box className="text-fuchsia-400" />
+                    Provision New Container
                 </h2>
                 <button onClick={onClose} className="text-slate-400 hover:text-white"><X size={24}/></button>
             </div>
 
             <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
                 
-                <form id="create-form" onSubmit={handleSubmit} className="space-y-6">
+                <form id="create-container-form" onSubmit={handleSubmit} className="space-y-6">
                     {/* Name */}
                     <div>
-                        <label className="block text-xs font-bold text-slate-400 mb-2 uppercase">Instance Name</label>
+                        <label className="block text-xs font-bold text-slate-400 mb-2 uppercase">Container Name</label>
                         <input 
                             name="name" 
                             required 
@@ -63,21 +65,21 @@ export const CreateVmModal: React.FC<CreateVmModalProps> = ({ onClose, onSubmit 
                             onInput={(e) => {
                                 e.currentTarget.value = e.currentTarget.value.replace(/\s+/g, '-').toLowerCase();
                             }}
-                            className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:border-cyan-500 focus:outline-none transition-colors" 
-                            placeholder="e.g., web-server-01" 
+                            className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:border-fuchsia-500 focus:outline-none transition-colors" 
+                            placeholder="e.g., web-proxy-01" 
                         />
                     </div>
 
                     {/* Image Selection */}
                     <div>
-                        <label className="block text-xs font-bold text-slate-400 mb-2 uppercase">Operating System</label>
+                        <label className="block text-xs font-bold text-slate-400 mb-2 uppercase">Distro Image</label>
                         <div className="grid grid-cols-2 gap-3">
                             {AVAILABLE_IMAGES.map((img) => (
                                 <button
                                     key={img.value}
                                     type="button"
                                     onClick={() => setSelectedImage(img.value)}
-                                    className={`px-4 py-3 rounded-lg text-sm text-left border transition-all ${selectedImage === img.value ? 'border-cyan-500 bg-cyan-500/10 text-white shadow-[0_0_15px_rgba(34,211,238,0.1)]' : 'border-white/10 bg-white/5 text-slate-400 hover:bg-white/10'}`}
+                                    className={`px-4 py-3 rounded-lg text-sm text-left border transition-all ${selectedImage === img.value ? 'border-fuchsia-500 bg-fuchsia-500/10 text-white shadow-[0_0_15px_rgba(217,70,239,0.1)]' : 'border-white/10 bg-white/5 text-slate-400 hover:bg-white/10'}`}
                                 >
                                     <span className="block font-semibold">{img.label}</span>
                                     <span className="text-xs opacity-50 font-mono">{img.value}</span>
@@ -87,18 +89,14 @@ export const CreateVmModal: React.FC<CreateVmModalProps> = ({ onClose, onSubmit 
                     </div>
 
                     {/* Resources */}
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-bold text-slate-400 mb-2 uppercase flex items-center gap-2"><Cpu size={14}/> CPU Cores</label>
-                            <input name="cpu" type="number" min="1" max="16" defaultValue="2" className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:border-cyan-500 focus:outline-none" />
+                            <label className="block text-xs font-bold text-slate-400 mb-2 uppercase flex items-center gap-2"><Cpu size={14}/> CPU Limit</label>
+                            <input name="cpu" type="number" min="1" max="16" defaultValue="1" className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:border-fuchsia-500 focus:outline-none" />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-slate-400 mb-2 uppercase flex items-center gap-2"><Zap size={14}/> RAM (GB)</label>
-                            <input name="ram" type="number" min="0.5" max="64" step="0.5" defaultValue="4" className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:border-cyan-500 focus:outline-none" />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-slate-400 mb-2 uppercase flex items-center gap-2"><HardDrive size={14}/> Disk (GB)</label>
-                            <input name="storage" type="number" min="5" max="1000" defaultValue="32" className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:border-cyan-500 focus:outline-none" />
+                            <label className="block text-xs font-bold text-slate-400 mb-2 uppercase flex items-center gap-2"><Zap size={14}/> RAM Limit (GB)</label>
+                            <input name="ram" type="number" min="0.1" max="64" step="0.1" defaultValue="0.5" className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:border-fuchsia-500 focus:outline-none" />
                         </div>
                     </div>
                 </form>
@@ -107,8 +105,8 @@ export const CreateVmModal: React.FC<CreateVmModalProps> = ({ onClose, onSubmit 
             {/* Footer */}
             <div className="p-6 border-t border-white/5 flex justify-end gap-3 bg-slate-900/50">
                 <button type="button" onClick={onClose} className="px-6 py-2.5 rounded-lg text-slate-300 hover:bg-white/5 transition-colors font-medium">Cancel</button>
-                <button form="create-form" type="submit" className="px-6 py-2.5 rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold shadow-lg shadow-cyan-900/20 transition-all flex items-center gap-2">
-                    <Zap size={18} className="fill-white" /> Create VM
+                <button form="create-container-form" type="submit" className="px-6 py-2.5 rounded-lg bg-gradient-to-r from-fuchsia-600 to-purple-600 hover:from-fuchsia-500 hover:to-purple-500 text-white font-bold shadow-lg shadow-fuchsia-900/20 transition-all flex items-center gap-2">
+                    <Box size={18} className="fill-white" /> Launch Container
                 </button>
             </div>
         </div>
