@@ -57,5 +57,12 @@ export const api = {
     });
     if (!res.ok) throw new Error('Failed to create instance');
     return res.json();
+  },
+
+  deleteInstance: async (id: string): Promise<void> => {
+    const res = await fetch(`${API_BASE}/instances/${id}`, {
+        method: 'DELETE',
+    });
+    if (!res.ok) throw new Error('Failed to delete instance');
   }
 };
