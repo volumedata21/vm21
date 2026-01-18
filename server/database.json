@@ -11,6 +11,22 @@
       "attachedDevices": [],
       "notes": "This VM lives in the database.json file!",
       "snapshots": []
+    },
+    {
+      "id": "vm-1768755373012",
+      "name": "asdf",
+      "status": "Stopped",
+      "os": "Ubuntu",
+      "cpuCores": 2,
+      "ramGB": 4,
+      "diskSizeGB": 32,
+      "attachedDevices": [],
+      "snapshots": [],
+      "distro": "ubuntu",
+      "ipAddress": "-",
+      "cpuLimit": 2,
+      "ramLimit": 4,
+      "diskUsage": 0
     }
   ],
   "containers": [],
