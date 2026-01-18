@@ -1,0 +1,7 @@
+services:
+  hyperdash:
+    build: .
+    container_name: hyperdash_gui
+    restart: unless-stopped
+    ports:
+      - "5210:80"
