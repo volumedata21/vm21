@@ -1,7 +1,10 @@
 services:
   hyperdash:
     build: .
-    container_name: hyperdash_gui
+    container_name: vm21
     restart: unless-stopped
     ports:
-      - "5210:80"
+      - "5210:3000"
+    volumes:
+      - ./server:/app/server
+      - /app/node_modules
