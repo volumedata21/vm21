@@ -17,6 +17,25 @@ app.use(express.json());
 
 // --- API Routes ---
 
+// 0. System Stats (Real-time)
+app.get('/api/stats', async (req: Request, res: Response) => {
+  try {
+    const [cpu, mem] = await Promise.all([
+      si.currentLoad(),
+      si.mem()
+    ]);
+
+    res.json({
+      cpu: Math.round(cpu.currentLoad),
+      ram: Math.round((mem.active / mem.total) * 100),
+      totalMemGB: Math.round(mem.total / 1024 / 1024 / 1024)
+    });
+  } catch (error) {
+    console.error("Stats error:", error);
+    res.status(500).json({ error: "Failed to read system stats" });
+  }
+});
+
 // 1. VMs
 app.get('/api/vms', (req: Request, res: Response) => {
   const db = readDb(); // Read from file
@@ -79,25 +98,6 @@ app.use(express.static(distPath));
 
 app.get('*', (req: Request, res: Response) => {
   res.sendFile(path.join(distPath, 'index.html'));
-});
-
-// 4. System Stats (Real-time)
-app.get('/api/stats', async (req: Request, res: Response) => {
-  try {
-    const [cpu, mem] = await Promise.all([
-      si.currentLoad(),
-      si.mem()
-    ]);
-
-    res.json({
-      cpu: Math.round(cpu.currentLoad),
-      ram: Math.round((mem.active / mem.total) * 100),
-      totalMemGB: Math.round(mem.total / 1024 / 1024 / 1024)
-    });
-  } catch (error) {
-    console.error("Stats error:", error);
-    res.status(500).json({ error: "Failed to read system stats" });
-  }
 });
 
 app.listen(port, () => {

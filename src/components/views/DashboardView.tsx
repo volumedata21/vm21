@@ -1,9 +1,21 @@
 import React from 'react';
 import { 
-  Server, Cpu, Box, Disc, Activity, Zap 
+  Server, 
+  Cpu, 
+  Box, 
+  Disc, 
+  Activity, 
+  Zap 
 } from 'lucide-react';
 import { 
-  XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, AreaChart, Area
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip as RechartsTooltip, 
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  Legend
 } from 'recharts';
 import { VirtualMachine, LxcContainer, IsoImage, VMStatus } from '../../types';
 
@@ -15,6 +27,8 @@ interface DashboardProps {
 }
 
 export const DashboardView: React.FC<DashboardProps> = ({ vms, lxcContainers, images, statsData }) => {
+  
+  // Calculate summary statistics
   const runningVms = vms.filter(v => v.status === VMStatus.RUNNING).length;
   const runningLxc = lxcContainers.filter(c => c.status === VMStatus.RUNNING).length;
   
@@ -26,6 +40,7 @@ export const DashboardView: React.FC<DashboardProps> = ({ vms, lxcContainers, im
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
+      {/* 1. Top Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: 'Running VMs', value: runningVms, icon: Server, color: 'text-emerald-400', glow: 'shadow-emerald-500/20' },
@@ -45,36 +60,83 @@ export const DashboardView: React.FC<DashboardProps> = ({ vms, lxcContainers, im
         ))}
       </div>
 
-      <div className="glass-panel p-6 rounded-xl shadow-lg shadow-black/20 h-80 relative overflow-hidden group">
+      {/* 2. Live Resource Chart */}
+      <div className="glass-panel p-6 rounded-xl shadow-lg shadow-black/20 h-96 relative overflow-hidden group">
         <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
             <Activity size={120} />
         </div>
-        <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+        <h3 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
             <Zap size={18} className="text-yellow-400 fill-yellow-400" /> Host Resource Utilization
         </h3>
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={statsData}>
+        
+        <ResponsiveContainer width="100%" height="90%">
+          <AreaChart 
+            data={statsData}
+            margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+          >
             <defs>
               <linearGradient id="colorCpu" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.3}/>
                 <stop offset="95%" stopColor="#06b6d4" stopOpacity={0}/>
               </linearGradient>
-              {/* Peach Gradient Definition */}
               <linearGradient id="colorRam" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#fb923c" stopOpacity={0.3}/>
                 <stop offset="95%" stopColor="#fb923c" stopOpacity={0}/>
               </linearGradient>
             </defs>
+            
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-            <XAxis dataKey="time" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-            <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
+            
+            <XAxis 
+              dataKey="time" 
+              stroke="#64748b" 
+              fontSize={12} 
+              tickLine={false} 
+              axisLine={false}
+              dy={10}
+            />
+            
+            <YAxis 
+              stroke="#64748b" 
+              fontSize={12} 
+              tickLine={false} 
+              axisLine={false} 
+              tickFormatter={(value) => `${value}%`}
+            />
+            
             <RechartsTooltip 
               contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.9)', borderColor: 'rgba(255,255,255,0.1)', color: '#f3f4f6', borderRadius: '8px', backdropFilter: 'blur(4px)' }} 
               itemStyle={{ color: '#f3f4f6' }}
             />
-            <Area type="monotone" dataKey="cpu" stroke="#22d3ee" strokeWidth={2} fillOpacity={1} fill="url(#colorCpu)" name="CPU %" />
-            {/* Peach Area Line */}
-            <Area type="monotone" dataKey="ram" stroke="#fb923c" strokeWidth={2} fillOpacity={1} fill="url(#colorRam)" name="RAM %" />
+
+            {/* UPDATED LEGEND WITH SMALLER TEXT */}
+            <Legend 
+              verticalAlign="bottom" 
+              height={36} 
+              iconType="circle"
+              iconSize={8}
+              wrapperStyle={{ paddingTop: '20px', fontSize: '11px' }} // fontSize reduced to 11px
+            />
+
+            <Area 
+              type="monotone" 
+              dataKey="cpu" 
+              name="CPU Load"
+              stroke="#22d3ee" 
+              strokeWidth={2} 
+              fillOpacity={1} 
+              fill="url(#colorCpu)" 
+            />
+            
+            <Area 
+              type="monotone" 
+              dataKey="ram" 
+              name="RAM Usage"
+              stroke="#fb923c" 
+              strokeWidth={2} 
+              fillOpacity={1} 
+              fill="url(#colorRam)" 
+            />
           </AreaChart>
         </ResponsiveContainer>
       </div>
