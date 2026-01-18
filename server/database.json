@@ -1,0 +1,18 @@
+{
+  "vms": [
+    {
+      "id": "vm-seed-1",
+      "name": "Seed VM (Persisted)",
+      "os": "Ubuntu",
+      "status": "Stopped",
+      "cpuCores": 2,
+      "ramGB": 4,
+      "diskSizeGB": 20,
+      "attachedDevices": [],
+      "notes": "This VM lives in the database.json file!",
+      "snapshots": []
+    }
+  ],
+  "containers": [],
+  "images": []
+}

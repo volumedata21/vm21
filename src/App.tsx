@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 
 // --- Services & Types ---
-import { MOCK_VMS, MOCK_HOST_DEVICES, MOCK_LXC_CONTAINERS, MOCK_ISO_IMAGES } from './services/mockHypervisor';
+import { api } from './services/api';
+// Re-added MOCK_HOST_DEVICES here because we haven't built a backend for devices yet
+import { MOCK_HOST_DEVICES } from './services/mockHypervisor'; 
 import { VirtualMachine, HostDevice, VMStatus, LxcContainer, IsoImage, Snapshot } from './types';
 
 // --- Component Imports ---
@@ -18,58 +20,96 @@ import { UploadImageModal } from './components/modals/UploadImageModal';
 
 const App: React.FC = () => {
   // --- State Management ---
-  
+
   // Data
-  const [vms, setVms] = useState<VirtualMachine[]>(MOCK_VMS);
-  const [lxcContainers, setLxcContainers] = useState<LxcContainer[]>(MOCK_LXC_CONTAINERS);
-  const [images, setImages] = useState<IsoImage[]>(MOCK_ISO_IMAGES);
-  const [devices, setDevices] = useState<HostDevice[]>(MOCK_HOST_DEVICES);
-  
+  const [vms, setVms] = useState<VirtualMachine[]>([]);
+  const [lxcContainers, setLxcContainers] = useState<LxcContainer[]>([]);
+  const [images, setImages] = useState<IsoImage[]>([]);
+  const [devices, setDevices] = useState<HostDevice[]>(MOCK_HOST_DEVICES); // This now works
+
   // Selection
   const [selectedVmId, setSelectedVmId] = useState<string | null>(null);
   const [selectedLxcId, setSelectedLxcId] = useState<string | null>(null);
-  
+
   // UI State
   const [activeTab, setActiveTab] = useState<'dashboard' | 'vms' | 'lxc' | 'images' | 'settings'>('dashboard');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  
+
   // Simulated Live Stats
   const [statsData, setStatsData] = useState<{ time: string; cpu: number; ram: number }[]>([]);
 
   // --- Effects ---
 
-  // Simulate realtime host stats
+  // --- Load Data from Backend ---
   useEffect(() => {
-    const interval = setInterval(() => {
-      setStatsData(prev => {
-        const now = new Date();
-        const timeStr = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
-        const newPoint = {
-          time: timeStr,
-          cpu: Math.floor(Math.random() * 30) + 10, // Simulated 10-40% usage
-          ram: Math.floor(Math.random() * 20) + 40  // Simulated 40-60% usage
-        };
-        const newData = [...prev, newPoint];
-        if (newData.length > 20) newData.shift();
-        return newData;
-      });
-    }, 2000);
+    const loadData = async () => {
+      try {
+        const [vmsData, lxcData, imagesData] = await Promise.all([
+          api.getVms(),
+          api.getContainers(),
+          api.getImages()
+        ]);
+        setVms(vmsData);
+        setLxcContainers(lxcData);
+        setImages(imagesData);
+      } catch (err) {
+        console.error("Failed to load data:", err);
+      }
+    };
+    loadData();
+  }, []);
+
+  // --- Realtime Host Stats ---
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const data = await api.getStats();
+        
+        setStatsData(prev => {
+          const now = new Date();
+          const timeStr = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
+          const newPoint = {
+            time: timeStr,
+            cpu: data.cpu, // Real CPU %
+            ram: data.ram  // Real RAM %
+          };
+          
+          // Keep the last 20 data points for the graph
+          const newData = [...prev, newPoint];
+          if (newData.length > 20) newData.shift();
+          return newData;
+        });
+      } catch (err) {
+        // Fail silently so we don't spam alerts
+        console.warn("Stats fetch failed"); 
+      }
+    };
+
+    // Fetch immediately, then every 2 seconds
+    fetchStats();
+    const interval = setInterval(fetchStats, 2000);
+    
     return () => clearInterval(interval);
   }, []);
 
   // --- Handlers ---
 
   // VM Actions
-  const handleToggleVm = (id: string) => {
-    setVms(prev => prev.map(vm => 
-      vm.id === id 
-        ? { ...vm, status: vm.status === VMStatus.RUNNING ? VMStatus.STOPPED : VMStatus.RUNNING } 
-        : vm
-    ));
+  const handleToggleVm = async (id: string) => {
+    try {
+      const updatedVm = await api.toggleVm(id);
+      setVms(prev => prev.map(vm => vm.id === id ? updatedVm : vm));
+    } catch (error) {
+      alert("Failed to toggle VM. Check console.");
+    }
   };
 
-  const handleCreateVm = (formData: FormData) => {
+  // NOTE: This currently simulates creation locally. 
+  // To make it persistent, you would need to add api.createVm() 
+  const handleCreateVm = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
     const newVm: VirtualMachine = {
       id: `vm-${Date.now()}`,
       name: formData.get('name') as string,
@@ -90,10 +130,9 @@ const App: React.FC = () => {
 
   const handleDeleteVm = (id: string) => {
     if (confirm('Are you sure you want to delete this VM? Data will be lost.')) {
-      // Release devices
       const vm = vms.find(v => v.id === id);
       if (vm) {
-        setDevices(prev => prev.map(d => 
+        setDevices(prev => prev.map(d =>
           vm.attachedDevices.includes(d.id) ? { ...d, inUseBy: null } : d
         ));
       }
@@ -105,111 +144,127 @@ const App: React.FC = () => {
   const handleToggleDevice = (vmId: string, deviceId: string) => {
     const vm = vms.find(v => v.id === vmId);
     if (!vm) return;
-
     const isAttached = vm.attachedDevices.includes(deviceId);
-
-    // Update VM
-    setVms(prev => prev.map(v => 
-      v.id === vmId 
+    
+    setVms(prev => prev.map(v =>
+      v.id === vmId
         ? { ...v, attachedDevices: isAttached ? v.attachedDevices.filter(d => d !== deviceId) : [...v.attachedDevices, deviceId] }
         : v
     ));
-
-    // Update Device Registry
-    setDevices(prev => prev.map(d => 
-      d.id === deviceId 
-        ? { ...d, inUseBy: isAttached ? null : vmId }
-        : d
+    setDevices(prev => prev.map(d =>
+      d.id === deviceId ? { ...d, inUseBy: isAttached ? null : vmId } : d
     ));
   };
 
   const handleUpdateVmResources = (id: string, cpu: number, ram: number) => {
-      setVms(prev => prev.map(v => v.id === id ? { ...v, cpuCores: cpu, ramGB: ram } : v));
+    setVms(prev => prev.map(v => v.id === id ? { ...v, cpuCores: cpu, ramGB: ram } : v));
   };
 
   const handleCreateSnapshot = (targetId: string, isLxc: boolean) => {
-      const name = prompt("Enter snapshot name:");
-      if (!name) return;
-      
-      const newSnap: Snapshot = {
-          id: `snap-${Date.now()}`,
-          name,
-          created: new Date().toISOString().split('T')[0],
-          sizeGB: 0.1
-      };
-
-      if (isLxc) {
-          setLxcContainers(prev => prev.map(c => c.id === targetId ? { ...c, snapshots: [...c.snapshots, newSnap] } : c));
-      } else {
-          setVms(prev => prev.map(v => v.id === targetId ? { ...v, snapshots: [...v.snapshots, newSnap] } : v));
-      }
+    const name = prompt("Enter snapshot name:");
+    if (!name) return;
+    const newSnap: Snapshot = {
+      id: `snap-${Date.now()}`,
+      name,
+      created: new Date().toISOString().split('T')[0],
+      sizeGB: 0.1
+    };
+    if (isLxc) {
+      setLxcContainers(prev => prev.map(c => c.id === targetId ? { ...c, snapshots: [...c.snapshots, newSnap] } : c));
+    } else {
+      setVms(prev => prev.map(v => v.id === targetId ? { ...v, snapshots: [...v.snapshots, newSnap] } : v));
+    }
   };
 
   const handleRestoreSnapshot = (snapId: string) => {
-      if(confirm(`Restore snapshot? Current state will be lost.`)) {
-          alert(`Restoring snapshot... (Simulation)`);
-      }
+    if (confirm(`Restore snapshot? Current state will be lost.`)) {
+      alert(`Restoring snapshot... (Simulation)`);
+    }
   };
 
   // LXC Actions
-  const handleToggleLxc = (id: string) => {
-    setLxcContainers(prev => prev.map(c => 
-      c.id === id 
-        ? { ...c, status: c.status === VMStatus.RUNNING ? VMStatus.STOPPED : VMStatus.RUNNING }
-        : c
-    ));
+  
+  // FIXED: Now uses the API instead of local state only
+  const handleToggleLxc = async (id: string) => {
+    try {
+      const updatedLxc = await api.toggleLxc(id);
+      setLxcContainers(prev => prev.map(c => c.id === id ? updatedLxc : c));
+    } catch (error) {
+      alert("Failed to toggle LXC. Check console.");
+    }
   };
 
   const handleDeleteLxc = (id: string) => {
     if (confirm('Are you sure you want to delete this Container?')) {
-        setLxcContainers(prev => prev.filter(c => c.id !== id));
-        if (selectedLxcId === id) setSelectedLxcId(null);
+      setLxcContainers(prev => prev.filter(c => c.id !== id));
+      if (selectedLxcId === id) setSelectedLxcId(null);
     }
   };
 
   const handleUpdateLxcResources = (id: string, cpu: number, ram: number) => {
-      setLxcContainers(prev => prev.map(c => c.id === id ? { ...c, cpuLimit: cpu, ramLimit: ram } : c));
+    setLxcContainers(prev => prev.map(c => c.id === id ? { ...c, cpuLimit: cpu, ramLimit: ram } : c));
   };
 
   // Image Actions
-  const handleUploadImage = (newImage: IsoImage) => {
-      setImages(prev => [...prev, newImage]);
-      setIsUploadModalOpen(false);
-      
-      // Simulate download completion
-      setTimeout(() => {
-          setImages(prev => prev.map(img => 
-             img.id === newImage.id ? { ...img, status: 'Ready', sizeGB: Math.floor(Math.random() * 4) + 1 } : img
-          ));
-      }, 3000);
+  const handleUploadImage = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const type = formData.get('uploadType') === 'url' ? 'url' : 'file';
+    const name = formData.get('name') as string;
+    const file = formData.get('file') as File;
+
+    const newImage: IsoImage = {
+        id: `iso-${Date.now()}`,
+        name: type === 'file' ? file.name : (name || 'Unknown-Image'),
+        type: 'ISO',
+        sizeGB: 0,
+        status: 'Downloading',
+        addedDate: new Date().toISOString().split('T')[0],
+        sourceUrl: type === 'url' ? formData.get('url') as string : undefined
+    };
+    
+    setImages(prev => [...prev, newImage]);
+    setIsUploadModalOpen(false);
+
+    setTimeout(() => {
+        setImages(prev => prev.map(img => 
+           img.id === newImage.id ? { ...img, status: 'Ready', sizeGB: Math.floor(Math.random() * 4) + 1 } : img
+        ));
+    }, 3000);
   };
 
-  const handleDeleteImage = (id: string) => {
-      if (confirm('Remove this image from library?')) {
-          setImages(prev => prev.filter(i => i.id !== id));
+  const handleDeleteImage = async (id: string) => {
+    if (confirm('Remove this image from library?')) {
+      // Added API call for delete
+      try {
+        await api.deleteImage(id);
+        setImages(prev => prev.filter(i => i.id !== id));
+      } catch (err) {
+        alert("Failed to delete image.");
       }
+    }
   };
 
   // --- Render ---
 
   return (
     <div className="min-h-screen text-slate-200 font-sans selection:bg-cyan-500/30 selection:text-cyan-100">
-      
+
       <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        
+
         {activeTab === 'dashboard' && (
-          <DashboardView 
-            vms={vms} 
-            lxcContainers={lxcContainers} 
-            images={images} 
-            statsData={statsData} 
+          <DashboardView
+            vms={vms}
+            lxcContainers={lxcContainers}
+            images={images}
+            statsData={statsData}
           />
         )}
 
         {activeTab === 'vms' && (
-          <VmListView 
+          <VmListView
             vms={vms}
             devices={devices}
             selectedVmId={selectedVmId}
@@ -225,7 +280,7 @@ const App: React.FC = () => {
         )}
 
         {activeTab === 'lxc' && (
-          <LxcListView 
+          <LxcListView
             containers={lxcContainers}
             selectedLxcId={selectedLxcId}
             onSelectLxc={setSelectedLxcId}
@@ -238,7 +293,7 @@ const App: React.FC = () => {
         )}
 
         {activeTab === 'images' && (
-          <ImageLibraryView 
+          <ImageLibraryView
             images={images}
             onDeleteImage={handleDeleteImage}
             onOpenUploadModal={() => setIsUploadModalOpen(true)}
@@ -246,25 +301,26 @@ const App: React.FC = () => {
         )}
 
         {activeTab === 'settings' && (
-            <SettingsView />
+          <SettingsView />
         )}
       </main>
 
       {/* Modals */}
       {isCreateModalOpen && (
-        <CreateVmModal 
-            onClose={() => setIsCreateModalOpen(false)} 
-            onSubmit={handleCreateVm} 
+        <CreateVmModal
+          onClose={() => setIsCreateModalOpen(false)}
+          onSubmit={handleCreateVm}
         />
       )}
-      
+
       {isUploadModalOpen && (
-        <UploadModal 
-            onClose={() => setIsUploadModalOpen(false)} 
-            onSubmit={handleUploadImage} 
+        // FIXED: Renamed from UploadModal to UploadImageModal
+        <UploadImageModal
+          onClose={() => setIsUploadModalOpen(false)}
+          onSubmit={handleUploadImage}
         />
       )}
-      
+
     </div>
   );
 };

@@ -1,25 +1,20 @@
-# Stage 1: Build the application
-FROM node:20-alpine as build
+FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy package files and install dependencies
-COPY package.json ./
+# 1. Install dependencies
+COPY package.json package-lock.json* ./
 RUN npm install
 
-# Copy source code and build
+# 2. Copy all source code
 COPY . .
+
+# 3. Build the React Frontend
+# This runs "vite build" and creates the /app/dist folder
 RUN npm run build
 
-# Stage 2: Serve with Nginx
-FROM nginx:alpine
+# 4. Expose the internal port
+EXPOSE 3000
 
-# Copy built assets from Stage 1
-COPY --from=build /app/dist /usr/share/nginx/html
-
-# Copy custom Nginx config
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-EXPOSE 80
-
-CMD ["nginx", "-g", "daemon off;"]
+# 5. Start the backend (which now also serves the frontend)
+CMD ["npm", "run", "server"]
