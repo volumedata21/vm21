@@ -46,5 +46,16 @@ export const api = {
     const res = await fetch(`${API_BASE}/stats`);
     if (!res.ok) throw new Error('Failed to fetch stats');
     return res.json();
+  },
+
+  // Create (VM or Container)
+  createInstance: async (data: any): Promise<any> => {
+    const res = await fetch(`${API_BASE}/instances`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    });
+    if (!res.ok) throw new Error('Failed to create instance');
+    return res.json();
   }
 };

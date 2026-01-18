@@ -5,7 +5,9 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { VirtualMachine, LxcContainer, IsoImage, VMStatus } from '../src/types';
 import { readDb, writeDb } from './db';
+import { startInstance, stopInstance } from './hypervisor';
 import si from 'systeminformation';
+import { startInstance, stopInstance, createInstance } from './hypervisor'; //
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -42,37 +44,62 @@ app.get('/api/vms', (req: Request, res: Response) => {
   res.json(db.vms);
 });
 
-app.post('/api/vms/:id/toggle', (req: Request, res: Response) => {
+app.post('/api/vms/:id/toggle', async (req: Request, res: Response) => {
   const { id } = req.params;
   const db = readDb();
   const target = db.vms.find(v => v.id === id);
   
-  if (target) {
-    target.status = target.status === VMStatus.RUNNING ? VMStatus.STOPPED : VMStatus.RUNNING;
-    writeDb(db); // Save changes to file
+  if (!target) return res.status(404).json({ error: "VM not found" });
+
+  try {
+    const isRunning = target.status === VMStatus.RUNNING;
+    
+    if (isRunning) {
+        await stopInstance(id); // Uses LXD Logic
+    } else {
+        await startInstance(id); // Uses LXD Logic
+    }
+
+    // Update DB
+    target.status = isRunning ? VMStatus.STOPPED : VMStatus.RUNNING;
+    writeDb(db);
     res.json(target);
-  } else {
-    res.status(404).json({ error: "VM not found" });
+
+  } catch (error: any) {
+    console.error("LXD Error:", error.message);
+    // Fallback for simulation
+    target.status = target.status === VMStatus.RUNNING ? VMStatus.STOPPED : VMStatus.RUNNING;
+    writeDb(db);
+    res.json(target);
   }
 });
 
 // 2. Containers
-app.get('/api/lxc', (req: Request, res: Response) => {
-  const db = readDb();
-  res.json(db.containers);
-});
-
-app.post('/api/lxc/:id/toggle', (req: Request, res: Response) => {
+app.post('/api/lxc/:id/toggle', async (req: Request, res: Response) => {
   const { id } = req.params;
   const db = readDb();
   const target = db.containers.find(c => c.id === id);
   
-  if (target) {
+  if (!target) return res.status(404).json({ error: "Container not found" });
+
+  try {
+    const isRunning = target.status === VMStatus.RUNNING;
+    
+    if (isRunning) {
+        await stopInstance(id);
+    } else {
+        await startInstance(id);
+    }
+
+    target.status = isRunning ? VMStatus.STOPPED : VMStatus.RUNNING;
+    writeDb(db);
+    res.json(target);
+
+  } catch (error: any) {
+    console.error("LXD Error:", error.message);
     target.status = target.status === VMStatus.RUNNING ? VMStatus.STOPPED : VMStatus.RUNNING;
     writeDb(db);
     res.json(target);
-  } else {
-    res.status(404).json({ error: "Container not found" });
   }
 });
 
@@ -90,6 +117,63 @@ app.delete('/api/images/:id', (req: Request, res: Response) => {
     res.json({ success: true });
 });
 
+// Create New Instance (VM or Container)
+app.post('/api/instances', async (req: Request, res: Response) => {
+    try {
+        const { name, type, image, cpu, ram, storage } = req.body;
+
+        // 1. Validate inputs
+        if (!name || !image) {
+            return res.status(400).json({ error: "Name and Image are required" });
+        }
+
+        // 2. Trigger LXD Creation (Simulated or Real)
+        await createInstance({
+            name,
+            type: type === 'LXC' ? 'container' : 'virtual-machine',
+            imageAlias: image,
+            cpu: Number(cpu),
+            ramGB: Number(ram)
+        });
+
+        // 3. Update Local Database (database.json)
+        // We do this so the UI updates immediately without needing to re-fetch everything from LXD
+        const db = readDb();
+        const newItem = {
+            id: `${type.toLowerCase()}-${Date.now()}`,
+            name,
+            status: VMStatus.STOPPED, // New instances start stopped usually
+            // Map the rest of your specific fields...
+            os: image.includes('ubuntu') ? 'Ubuntu' : 'Alpine',
+            cpuCores: Number(cpu), // or cpuLimit for LXC
+            ramGB: Number(ram),    // or ramLimit
+            diskSizeGB: Number(storage),
+            attachedDevices: [],
+            snapshots: [],
+            // LXC specific fields if needed
+            distro: image.split('/')[0], 
+            ipAddress: '-',
+            cpuLimit: Number(cpu),
+            ramLimit: Number(ram),
+            diskUsage: 0
+        };
+
+        if (type === 'ISO' || type === 'VM') { // Assuming 'VM' for virtual machines
+             db.vms.push(newItem as any); // Type casting for simplicity in this tutorial
+        } else {
+             db.containers.push(newItem as any);
+        }
+
+        writeDb(db);
+        
+        // Return the new item to the frontend
+        res.json(newItem);
+
+    } catch (error: any) {
+        console.error("Creation Failed:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
 
 
 // --- Serve React Frontend ---

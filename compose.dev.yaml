@@ -8,3 +8,4 @@ services:
     volumes:
       - ./server:/app/server
       - /app/node_modules
+      - /var/snap/lxd/common/lxd/unix.socket:/var/snap/lxd/common/lxd/unix.socket

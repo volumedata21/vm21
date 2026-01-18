@@ -107,25 +107,26 @@ const App: React.FC = () => {
 
   // NOTE: This currently simulates creation locally. 
   // To make it persistent, you would need to add api.createVm() 
-  const handleCreateVm = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const newVm: VirtualMachine = {
-      id: `vm-${Date.now()}`,
-      name: formData.get('name') as string,
-      os: formData.get('os') as any,
-      status: VMStatus.STOPPED,
-      cpuCores: Number(formData.get('cpu')),
-      ramGB: Number(formData.get('ram')),
-      diskSizeGB: Number(formData.get('storage')),
-      attachedDevices: [],
-      notes: 'Freshly provisioned VM.',
-      snapshots: []
-    };
-    setVms([...vms, newVm]);
-    setIsCreateModalOpen(false);
-    setActiveTab('vms');
-    setSelectedVmId(newVm.id);
+  // Updated Handle Create
+  const handleCreateVm = async (data: any) => {
+    try {
+        // 1. Call API
+        const newItem = await api.createInstance(data);
+
+        // 2. Update Local State (UI)
+        if (data.type === 'VM') {
+            setVms(prev => [...prev, newItem]);
+            setActiveTab('vms');
+        } else {
+            setLxcContainers(prev => [...prev, newItem]);
+            setActiveTab('lxc');
+        }
+
+        setIsCreateModalOpen(false);
+    } catch (err) {
+        alert("Failed to create instance. See console.");
+        console.error(err);
+    }
   };
 
   const handleDeleteVm = (id: string) => {
