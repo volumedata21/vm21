@@ -1,0 +1,5 @@
+{
+  "name": "HyperDash - VM Manager",
+  "description": "A modern web interface for managing KVM/QEMU virtual machines on Ubuntu, featuring easy device passthrough configuration (IGPU, USB, HDD) and AI-powered configuration assistance.",
+  "requestFramePermissions": []
+}
