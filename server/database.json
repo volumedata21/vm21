@@ -5,48 +5,6 @@
       "name": "umbrel",
       "os": "Linux",
       "status": "Stopped",
-<<<<<<< Updated upstream
-      "cpuCores": 2,
-      "ramGB": 4,
-      "diskSizeGB": 20,
-      "attachedDevices": [],
-      "snapshots": [],
-      "ipAddress": "-"
-    }
-  ],
-  "containers": [
-    {
-      "id": "lxd-minecraft",
-      "name": "minecraft",
-      "distro": "ubuntu",
-      "status": "Running",
-      "ipAddress": "-",
-      "cpuLimit": 1,
-      "ramLimit": 0.5,
-      "diskUsage": 0,
-      "snapshots": []
-    },
-    {
-      "id": "lxd-quorra",
-      "name": "quorra",
-      "distro": "ubuntu",
-      "status": "Stopped",
-      "ipAddress": "-",
-      "cpuLimit": 1,
-      "ramLimit": 0.5,
-      "diskUsage": 0,
-      "snapshots": []
-    },
-    {
-      "id": "lxd-test",
-      "name": "test",
-      "distro": "ubuntu",
-      "status": "Running",
-      "ipAddress": "-",
-      "cpuLimit": 2,
-      "ramLimit": 4,
-      "diskUsage": 0
-=======
       "cpuCores": 4,
       "ramGB": 0,
       "diskSizeGB": 10,
@@ -111,7 +69,6 @@
       "ramLimit": 1,
       "diskUsage": 0,
       "snapshots": []
->>>>>>> Stashed changes
     }
   ],
   "images": []

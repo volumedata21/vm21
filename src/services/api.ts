@@ -57,8 +57,6 @@ export const api = {
     });
     if (!res.ok) throw new Error('Failed to create instance');
     return res.json();
-<<<<<<< Updated upstream
-=======
   },
 
   deleteInstance: async (id: string): Promise<void> => {
@@ -91,6 +89,5 @@ export const api = {
         body: JSON.stringify({ vmId, deviceId })
     });
     if (!res.ok) throw new Error('Failed to detach device');
->>>>>>> Stashed changes
   }
 };

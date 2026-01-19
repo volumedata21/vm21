@@ -1,25 +1,4 @@
 import { readDb } from './db';
-<<<<<<< Updated upstream
-
-// --- Configuration ---
-// In a real setup, LXD exposes a Unix socket or an HTTPS port.
-// For now, we will simulate the connection unless you have a real LXD IP.
-const LXD_CONFIG = {
-  host: process.env.LXD_HOST || 'https://192.168.1.50:8443', // Your Linux Server IP
-  cert: process.env.LXD_CERT, // Client certificate (needed later)
-  key: process.env.LXD_KEY,   // Client key (needed later)
-};
-
-// --- Helper: Talk to LXD API ---
-const callLxdApi = async (path: string, method: string = 'GET', body?: any) => {
-    // NOTE: This requires setup on the real server (exposing LXD to network).
-    // For this step, we are just defining the structure.
-    
-    // In a real app, you would use an https agent with the certificates here.
-    const url = `${LXD_CONFIG.host}/1.0${path}`;
-    
-    console.log(`[LXD] ${method} ${url}`);
-=======
 import http from 'http';
 import fs from 'fs';
 import { exec } from 'child_process';
@@ -33,25 +12,47 @@ const callLxdApi = (path: string, method: string = 'GET', body?: any): Promise<a
     return new Promise((resolve, reject) => {
         if (!fs.existsSync(LXD_SOCKET_PATH)) {
             console.log(`[Simulation] ${method} ${path}`);
+            // Return empty for simulation so app doesn't crash on Mac
             setTimeout(() => resolve({ status: 'Success', metadata: [] }), 500);
             return;
         }
->>>>>>> Stashed changes
 
-    // Mocking the call for now because you are on Mac M3
-    // In production, you would do:
-    // const res = await fetch(url, { method, body: JSON.stringify(body) ... });
-    
-    // Simulate network delay
-    await new Promise(r => setTimeout(r, 500));
-    
-    // Return fake success
-    return { status: 'Success', metadata: {} };
+        console.log(`[Real-LXD] ${method} ${path}`);
+
+        const options: http.RequestOptions = {
+            socketPath: LXD_SOCKET_PATH,
+            path: `/1.0${path}`,
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+        };
+
+        const req = http.request(options, (res) => {
+            let data = '';
+            res.on('data', (chunk) => { data += chunk; });
+            res.on('end', () => {
+                try {
+                    const json = JSON.parse(data);
+                    if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+                        resolve(json);
+                    } else {
+                         resolve({ type: 'error', error: json.error || json.metadata?.err || 'Unknown Error' });
+                    }
+                } catch (e) {
+                    resolve(data);
+                }
+            });
+        });
+
+        req.on('error', (err) => {
+            console.error("[LXD Connection Failed]", err.message);
+            reject(err); 
+        });
+
+        if (body) req.write(JSON.stringify(body));
+        req.end();
+    });
 };
 
-<<<<<<< Updated upstream
-// --- Instance Actions (Works for both VMs and Containers in LXD) ---
-=======
 const waitForOperation = async (operationId: string) => {
     for (let i = 0; i < 60; i++) {
         const res = await callLxdApi(`/operations/${operationId}`, 'GET');
@@ -76,8 +77,7 @@ export const fetchLxdInstances = async () => {
             const isVm = inst.type === 'virtual-machine';
             
             // --- FIX RAM CALCULATION ---
-            // LXD returns bytes. e.g. "4294967296"
-            // We want GB. e.g. 4
+            // LXD might return "4GB" (string) or "4294967296" (bytes)
             let ramBytes = 0;
             const rawLimit = inst.config['limits.memory'];
             
@@ -107,7 +107,6 @@ export const fetchLxdInstances = async () => {
         return [];
     }
 };
->>>>>>> Stashed changes
 
 export const startInstance = async (id: string) => {
     const db = readDb();
@@ -129,28 +128,6 @@ export const stopInstance = async (id: string) => {
     return true;
 };
 
-// --- NEW: Delete Logic ---
-export const deleteInstance = async (id: string) => {
-    const db = readDb();
-    const target = db.vms.find(v => v.id === id) || db.containers.find(c => c.id === id);
-    if (!target) throw new Error("Instance not found");
-
-<<<<<<< Updated upstream
-    console.log(`[LXD] Requesting stop for: ${target.name}`);
-
-    // LXD API: PUT /1.0/instances/<name>/state
-    await callLxdApi(`/instances/${target.name}/state`, 'PUT', {
-        action: 'stop',
-        timeout: 30,
-        force: false
-    });
-
-=======
-    const res = await callLxdApi(`/instances/${target.name}/state`, 'PUT', { action: 'stop', timeout: 30, force: true });
-    if (res.type === 'async' && res.metadata?.id) await waitForOperation(res.metadata.id);
-    return true;
-};
-
 export const deleteInstance = async (id: string) => {
     const db = readDb();
     const target = db.vms.find(v => v.id === id) || db.containers.find(c => c.id === id);
@@ -165,7 +142,6 @@ export const deleteInstance = async (id: string) => {
     const res = await callLxdApi(`/instances/${target.name}`, 'DELETE');
     if (res.type === 'async' && res.metadata?.id) await waitForOperation(res.metadata.id);
     
->>>>>>> Stashed changes
     return true;
 };
 
@@ -178,9 +154,6 @@ interface CreateParams {
 }
 
 export const createInstance = async (params: CreateParams) => {
-<<<<<<< Updated upstream
-    console.log(`[LXD] Creating ${params.type}: ${params.name} (Image: ${params.imageAlias})...`);
-=======
     console.log(`[LXD] Creating ${params.type}: ${params.name}...`);
 
     let source = {};
@@ -192,10 +165,9 @@ export const createInstance = async (params: CreateParams) => {
             mode: "pull", 
             server: "https://cloud-images.ubuntu.com/releases", 
             protocol: "simplestreams", 
-            alias: "lts" // This pulls the latest LTS (e.g. 24.04 or 22.04 depending on Ubuntu's current pointer)
+            alias: "lts" 
         };
     } else if (params.imageAlias.startsWith('ubuntu/')) {
-        // Specific Ubuntu versions (if we keep them)
         source = { 
             type: "image", 
             mode: "pull", 
@@ -204,7 +176,6 @@ export const createInstance = async (params: CreateParams) => {
             alias: params.imageAlias.replace('ubuntu/', '') 
         };
     } else {
-        // Community Images (Alpine, Debian, etc.)
         source = { 
             type: "image", 
             mode: "pull", 
@@ -215,7 +186,6 @@ export const createInstance = async (params: CreateParams) => {
     }
 
     // --- FIX: Send RAM as Bytes to avoid "Invalid Value" error ---
-    // 0.5 GB -> 536870912 Bytes
     const ramBytes = Math.floor(params.ramGB * 1024 * 1024 * 1024);
 
     const config: any = {
@@ -226,31 +196,25 @@ export const createInstance = async (params: CreateParams) => {
     if (params.type === 'virtual-machine') {
         config["security.secureboot"] = "false";
     }
->>>>>>> Stashed changes
 
-    // LXD API Payload Structure
     const payload = {
         name: params.name,
         type: params.type, 
-        source: {
-            type: "image",
-            alias: params.imageAlias
-        },
-        profiles: ["default"], // We assume a 'default' profile exists in LXD
-        config: {
-            "limits.cpu": params.cpu.toString(),
-            "limits.memory": `${params.ramGB}GB`
-        }
+        source: source,
+        profiles: ["default"],
+        config: config
     };
 
-    // Call LXD API (POST /1.0/instances)
-    await callLxdApi('/instances', 'POST', payload);
-
+    const res = await callLxdApi('/instances', 'POST', payload);
+    
+    if (res.type === 'error') throw new Error(res.error);
+    if (res.type === 'async' && res.metadata?.id) await waitForOperation(res.metadata.id);
+    
     return true;
 };
 
 // ==========================================
-// HARDWARE PASSTHROUGH LOGIC (Preserved)
+// HARDWARE PASSTHROUGH LOGIC
 // ==========================================
 
 export const getHostDevices = async () => {
