@@ -111,31 +111,28 @@ export const fetchLxdInstances = async () => {
 
 export const startInstance = async (id: string) => {
     const db = readDb();
-    
-    // Check both VMs and Containers lists
-    const vm = db.vms.find(v => v.id === id);
-    const container = db.containers.find(c => c.id === id);
-    const target = vm || container;
-
+    const target = db.vms.find(v => v.id === id) || db.containers.find(c => c.id === id);
     if (!target) throw new Error("Instance not found in DB");
 
-    console.log(`[LXD] Requesting start for: ${target.name}`);
-
-    // LXD API: PUT /1.0/instances/<name>/state
-    await callLxdApi(`/instances/${target.name}/state`, 'PUT', {
-        action: 'start',
-        timeout: 30
-    });
-
+    const res = await callLxdApi(`/instances/${target.name}/state`, 'PUT', { action: 'start', timeout: 30 });
+    if (res.type === 'async' && res.metadata?.id) await waitForOperation(res.metadata.id);
     return true;
 };
 
 export const stopInstance = async (id: string) => {
     const db = readDb();
-    const vm = db.vms.find(v => v.id === id);
-    const container = db.containers.find(c => c.id === id);
-    const target = vm || container;
+    const target = db.vms.find(v => v.id === id) || db.containers.find(c => c.id === id);
+    if (!target) throw new Error("Instance not found");
 
+    const res = await callLxdApi(`/instances/${target.name}/state`, 'PUT', { action: 'stop', timeout: 30, force: true });
+    if (res.type === 'async' && res.metadata?.id) await waitForOperation(res.metadata.id);
+    return true;
+};
+
+// --- NEW: Delete Logic ---
+export const deleteInstance = async (id: string) => {
+    const db = readDb();
+    const target = db.vms.find(v => v.id === id) || db.containers.find(c => c.id === id);
     if (!target) throw new Error("Instance not found");
 
 <<<<<<< Updated upstream
@@ -172,11 +169,10 @@ export const deleteInstance = async (id: string) => {
     return true;
 };
 
-// New Type definition for Creation Params
 interface CreateParams {
     name: string;
     type: 'virtual-machine' | 'container';
-    imageAlias: string; // e.g., "ubuntu/22.04"
+    imageAlias: string;
     cpu: number;
     ramGB: number;
 }

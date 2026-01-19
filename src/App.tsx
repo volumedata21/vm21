@@ -19,12 +19,12 @@ import { SettingsView } from './components/views/SettingsView';
 
 // --- Modal Imports ---
 import { CreateVmModal } from './components/modals/CreateVmModal';
+import { CreateContainerModal } from './components/modals/CreateContainerModal';
 import { UploadImageModal } from './components/modals/UploadImageModal';
+
 
 const App: React.FC = () => {
   // --- State Management ---
-
-  // Data
   const [vms, setVms] = useState<VirtualMachine[]>([]);
   const [lxcContainers, setLxcContainers] = useState<LxcContainer[]>([]);
   const [images, setImages] = useState<IsoImage[]>([]);
@@ -38,17 +38,14 @@ const App: React.FC = () => {
   const [selectedVmId, setSelectedVmId] = useState<string | null>(null);
   const [selectedLxcId, setSelectedLxcId] = useState<string | null>(null);
 
-  // UI State
   const [activeTab, setActiveTab] = useState<'dashboard' | 'vms' | 'lxc' | 'images' | 'settings'>('dashboard');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isCreateLxcModalOpen, setIsCreateLxcModalOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
-  // Simulated Live Stats
   const [statsData, setStatsData] = useState<{ time: string; cpu: number; ram: number }[]>([]);
 
   // --- Effects ---
-
-  // --- Load Data from Backend ---
   useEffect(() => {
     const loadData = async () => {
       // 1. Critical Data (VMs, Containers, Images)
@@ -78,42 +75,33 @@ const App: React.FC = () => {
     loadData();
   }, []);
 
-  // --- Realtime Host Stats ---
   useEffect(() => {
     const fetchStats = async () => {
       try {
         const data = await api.getStats();
-        
         setStatsData(prev => {
           const now = new Date();
           const timeStr = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
           const newPoint = {
             time: timeStr,
-            cpu: data.cpu, // Real CPU %
-            ram: data.ram  // Real RAM %
+            cpu: data.cpu,
+            ram: data.ram
           };
-          
-          // Keep the last 20 data points for the graph
           const newData = [...prev, newPoint];
           if (newData.length > 20) newData.shift();
           return newData;
         });
       } catch (err) {
-        // Fail silently so we don't spam alerts
         console.warn("Stats fetch failed"); 
       }
     };
-
-    // Fetch immediately, then every 2 seconds
     fetchStats();
     const interval = setInterval(fetchStats, 2000);
-    
     return () => clearInterval(interval);
   }, []);
 
   // --- Handlers ---
 
-  // VM Actions
   const handleToggleVm = async (id: string) => {
     try {
       const updatedVm = await api.toggleVm(id);
@@ -123,15 +111,9 @@ const App: React.FC = () => {
     }
   };
 
-  // NOTE: This currently simulates creation locally. 
-  // To make it persistent, you would need to add api.createVm() 
-  // Updated Handle Create
   const handleCreateVm = async (data: any) => {
     try {
-        // 1. Call API
         const newItem = await api.createInstance(data);
-
-        // 2. Update Local State (UI)
         if (data.type === 'VM') {
             setVms(prev => [...prev, newItem]);
             setActiveTab('vms');
@@ -139,7 +121,6 @@ const App: React.FC = () => {
             setLxcContainers(prev => [...prev, newItem]);
             setActiveTab('lxc');
         }
-
         setIsCreateModalOpen(false);
     } catch (err) {
         alert("Failed to create instance. See console.");
@@ -147,7 +128,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleDeleteVm = (id: string) => {
+  const handleDeleteVm = async (id: string) => {
     if (confirm('Are you sure you want to delete this VM? Data will be lost.')) {
 <<<<<<< Updated upstream
       const vm = vms.find(v => v.id === id);
@@ -265,9 +246,6 @@ const App: React.FC = () => {
     }
   };
 
-  // LXC Actions
-  
-  // FIXED: Now uses the API instead of local state only
   const handleToggleLxc = async (id: string) => {
     try {
       const updatedLxc = await api.toggleLxc(id);
@@ -277,18 +255,10 @@ const App: React.FC = () => {
     }
   };
 
-  const handleDeleteLxc = (id: string) => {
-    if (confirm('Are you sure you want to delete this Container?')) {
-      setLxcContainers(prev => prev.filter(c => c.id !== id));
-      if (selectedLxcId === id) setSelectedLxcId(null);
-    }
-  };
-
   const handleUpdateLxcResources = (id: string, cpu: number, ram: number) => {
     setLxcContainers(prev => prev.map(c => c.id === id ? { ...c, cpuLimit: cpu, ramLimit: ram } : c));
   };
 
-  // Image Actions
   const handleUploadImage = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -318,7 +288,6 @@ const App: React.FC = () => {
 
   const handleDeleteImage = async (id: string) => {
     if (confirm('Remove this image from library?')) {
-      // Added API call for delete
       try {
         await api.deleteImage(id);
         setImages(prev => prev.filter(i => i.id !== id));
@@ -332,11 +301,8 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen text-slate-200 font-sans selection:bg-cyan-500/30 selection:text-cyan-100">
-
       <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
-
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-
         {activeTab === 'dashboard' && (
           <DashboardView
             vms={vms}
@@ -345,7 +311,6 @@ const App: React.FC = () => {
             statsData={statsData}
           />
         )}
-
         {activeTab === 'vms' && (
           <VmListView
             vms={vms}
@@ -361,7 +326,6 @@ const App: React.FC = () => {
             onOpenCreateModal={() => setIsCreateModalOpen(true)}
           />
         )}
-
         {activeTab === 'lxc' && (
           <LxcListView
             containers={lxcContainers}
@@ -372,9 +336,9 @@ const App: React.FC = () => {
             onUpdateResources={handleUpdateLxcResources}
             onCreateSnapshot={(id) => handleCreateSnapshot(id, true)}
             onRestoreSnapshot={handleRestoreSnapshot}
+            onOpenCreateModal={() => setIsCreateLxcModalOpen(true)}
           />
         )}
-
         {activeTab === 'images' && (
           <ImageLibraryView
             images={images}
@@ -382,13 +346,12 @@ const App: React.FC = () => {
             onOpenUploadModal={() => setIsUploadModalOpen(true)}
           />
         )}
-
         {activeTab === 'settings' && (
           <SettingsView />
         )}
       </main>
 
-      {/* Modals */}
+      {/* VM Modal */}
       {isCreateModalOpen && (
         <CreateVmModal
           onClose={() => setIsCreateModalOpen(false)}
@@ -396,14 +359,24 @@ const App: React.FC = () => {
         />
       )}
 
+      {/* NEW: Container Modal */}
+      {isCreateLxcModalOpen && (
+        <CreateContainerModal
+          onClose={() => setIsCreateLxcModalOpen(false)}
+          onSubmit={(data) => {
+              handleCreateVm(data); 
+              setIsCreateLxcModalOpen(false);
+          }}
+        />
+      )}
+
+      {/* Upload Modal */}
       {isUploadModalOpen && (
-        // FIXED: Renamed from UploadModal to UploadImageModal
         <UploadImageModal
           onClose={() => setIsUploadModalOpen(false)}
           onSubmit={handleUploadImage}
         />
       )}
-
     </div>
   );
 };

@@ -1,29 +1,47 @@
 {
   "vms": [
     {
-      "id": "vm-seed-1",
-      "name": "Seed VM (Persisted)",
-      "os": "Ubuntu",
+      "id": "lxd-umbrel",
+      "name": "umbrel",
+      "os": "Linux",
       "status": "Stopped",
 <<<<<<< Updated upstream
       "cpuCores": 2,
       "ramGB": 4,
       "diskSizeGB": 20,
       "attachedDevices": [],
-      "notes": "This VM lives in the database.json file!",
+      "snapshots": [],
+      "ipAddress": "-"
+    }
+  ],
+  "containers": [
+    {
+      "id": "lxd-minecraft",
+      "name": "minecraft",
+      "distro": "ubuntu",
+      "status": "Running",
+      "ipAddress": "-",
+      "cpuLimit": 1,
+      "ramLimit": 0.5,
+      "diskUsage": 0,
       "snapshots": []
     },
     {
-      "id": "vm-1768755373012",
-      "name": "asdf",
-      "status": "Stopped",
-      "os": "Ubuntu",
-      "cpuCores": 2,
-      "ramGB": 4,
-      "diskSizeGB": 32,
-      "attachedDevices": [],
-      "snapshots": [],
+      "id": "lxd-quorra",
+      "name": "quorra",
       "distro": "ubuntu",
+      "status": "Stopped",
+      "ipAddress": "-",
+      "cpuLimit": 1,
+      "ramLimit": 0.5,
+      "diskUsage": 0,
+      "snapshots": []
+    },
+    {
+      "id": "lxd-test",
+      "name": "test",
+      "distro": "ubuntu",
+      "status": "Running",
       "ipAddress": "-",
       "cpuLimit": 2,
       "ramLimit": 4,
@@ -96,6 +114,5 @@
 >>>>>>> Stashed changes
     }
   ],
-  "containers": [],
   "images": []
 }
