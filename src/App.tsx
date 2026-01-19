@@ -2,11 +2,7 @@ import React, { useState, useEffect } from 'react';
 
 // --- Services & Types ---
 import { api } from './services/api';
-<<<<<<< Updated upstream
-// Re-added MOCK_HOST_DEVICES here because we haven't built a backend for devices yet
-import { MOCK_HOST_DEVICES } from './services/mockHypervisor'; 
-=======
->>>>>>> Stashed changes
+// NOTE: MOCK_HOST_DEVICES is removed because we use real data now
 import { VirtualMachine, HostDevice, VMStatus, LxcContainer, IsoImage, Snapshot } from './types';
 
 // --- Component Imports ---
@@ -28,13 +24,10 @@ const App: React.FC = () => {
   const [vms, setVms] = useState<VirtualMachine[]>([]);
   const [lxcContainers, setLxcContainers] = useState<LxcContainer[]>([]);
   const [images, setImages] = useState<IsoImage[]>([]);
-<<<<<<< Updated upstream
-  const [devices, setDevices] = useState<HostDevice[]>(MOCK_HOST_DEVICES); // This now works
+  
+  // 1. Start with empty array (Real Data)
+  const [devices, setDevices] = useState<HostDevice[]>([]); 
 
-  // Selection
-=======
-  const [devices, setDevices] = useState<HostDevice[]>([]);
->>>>>>> Stashed changes
   const [selectedVmId, setSelectedVmId] = useState<string | null>(null);
   const [selectedLxcId, setSelectedLxcId] = useState<string | null>(null);
 
@@ -46,9 +39,11 @@ const App: React.FC = () => {
   const [statsData, setStatsData] = useState<{ time: string; cpu: number; ram: number }[]>([]);
 
   // --- Effects ---
+  
+  // 2. Safe Data Loading (Split Critical vs Non-Critical)
   useEffect(() => {
     const loadData = async () => {
-      // 1. Critical Data (VMs, Containers, Images)
+      // A. Critical Data (VMs, Containers, Images)
       try {
         const [vmsData, lxcData, imagesData] = await Promise.all([
           api.getVms(),
@@ -62,7 +57,7 @@ const App: React.FC = () => {
         console.error("CRITICAL: Failed to load VMs/Containers:", err);
       }
 
-      // 2. Non-Critical Data (USB Devices)
+      // B. Non-Critical Data (USB Devices)
       // If this fails (e.g. backend not ready), it won't break the dashboard
       try {
          const devicesData = await api.getDevices();
@@ -130,16 +125,10 @@ const App: React.FC = () => {
 
   const handleDeleteVm = async (id: string) => {
     if (confirm('Are you sure you want to delete this VM? Data will be lost.')) {
-<<<<<<< Updated upstream
-      const vm = vms.find(v => v.id === id);
-      if (vm) {
-        setDevices(prev => prev.map(d =>
-          vm.attachedDevices.includes(d.id) ? { ...d, inUseBy: null } : d
-        ));
-=======
       try {
         await api.deleteInstance(id);
         
+        // 3. Cleanup: Detach any devices used by this VM locally
         setDevices(prev => prev.map(d => 
             d.inUseBy === id ? { ...d, inUseBy: null } : d
         ));
@@ -162,14 +151,11 @@ const App: React.FC = () => {
       } catch (err) {
         alert("Failed to delete Container. Check console.");
         console.error(err);
->>>>>>> Stashed changes
       }
-      setVms(prev => prev.filter(v => v.id !== id));
-      if (selectedVmId === id) setSelectedVmId(null);
     }
   };
 
-  // --- Hardware Attach/Detach ---
+  // 4. Real Hardware Attach/Detach Logic
   const handleToggleDevice = async (vmId: string, deviceId: string) => {
     const vm = vms.find(v => v.id === vmId);
     const device = devices.find(d => d.id === deviceId);
@@ -177,7 +163,6 @@ const App: React.FC = () => {
     if (!vm || !device) return;
 
     // Check if we are attaching or detaching
-    // (We check if the VM thinks it has it, OR if the Device thinks the VM has it)
     const isAttached = vm.attachedDevices?.includes(deviceId) || device.inUseBy === vm.name;
 
     try {
@@ -185,7 +170,7 @@ const App: React.FC = () => {
             // Detach Logic
             await api.detachDevice(vmId, deviceId);
             
-            // Update UI Locally (Optimistic update)
+            // Update UI Locally
             setVms(prev => prev.map(v => 
                 v.id === vmId 
                 ? { ...v, attachedDevices: v.attachedDevices.filter(d => d !== deviceId) }
@@ -204,7 +189,7 @@ const App: React.FC = () => {
 
             await api.attachDevice(vmId, device);
 
-            // Update UI Locally (Optimistic update)
+            // Update UI Locally
             setVms(prev => prev.map(v => 
                 v.id === vmId 
                 ? { ...v, attachedDevices: [...(v.attachedDevices || []), deviceId] }
