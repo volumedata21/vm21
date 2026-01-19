@@ -1,4 +1,4 @@
-import { VirtualMachine, LxcContainer, IsoImage } from '../types';
+import { VirtualMachine, LxcContainer, IsoImage, HostDevice } from '../types';
 
 const API_BASE = '/api';
 
@@ -48,7 +48,7 @@ export const api = {
     return res.json();
   },
 
-  // Create (VM or Container)
+  // --- Instances (Create/Delete) ---
   createInstance: async (data: any): Promise<any> => {
     const res = await fetch(`${API_BASE}/instances`, {
         method: 'POST',
@@ -57,5 +57,40 @@ export const api = {
     });
     if (!res.ok) throw new Error('Failed to create instance');
     return res.json();
+<<<<<<< Updated upstream
+=======
+  },
+
+  deleteInstance: async (id: string): Promise<void> => {
+    const res = await fetch(`${API_BASE}/instances/${id}`, {
+        method: 'DELETE',
+    });
+    if (!res.ok) throw new Error('Failed to delete instance');
+  },
+
+  // --- NEW: Real Hardware Devices ---
+  getDevices: async (): Promise<HostDevice[]> => {
+    const res = await fetch(`${API_BASE}/devices`);
+    if (!res.ok) throw new Error('Failed to fetch devices');
+    return res.json();
+  },
+
+  attachDevice: async (vmId: string, device: HostDevice): Promise<void> => {
+    const res = await fetch(`${API_BASE}/devices/attach`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vmId, device })
+    });
+    if (!res.ok) throw new Error('Failed to attach device');
+  },
+
+  detachDevice: async (vmId: string, deviceId: string): Promise<void> => {
+    const res = await fetch(`${API_BASE}/devices/detach`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vmId, deviceId })
+    });
+    if (!res.ok) throw new Error('Failed to detach device');
+>>>>>>> Stashed changes
   }
 };

@@ -1,6 +1,12 @@
 services:
   hyperdash:
+<<<<<<< Updated upstream
     build: .
+=======
+    build:
+      context: .
+      dockerfile: Dockerfile
+>>>>>>> Stashed changes
     container_name: vm21
     restart: unless-stopped
     ports:
@@ -8,4 +14,20 @@ services:
     volumes:
       - ./server:/app/server
       - /app/node_modules
+<<<<<<< Updated upstream
       - /var/snap/lxd/common/lxd/unix.socket:/var/snap/lxd/common/lxd/unix.socket
+=======
+      # 1. LXD Socket
+      - /var/snap/lxd/common/lxd:/var/snap/lxd/common/lxd
+      # 2. USB Bus (So we can scan devices)
+      - /dev/bus/usb:/dev/bus/usb
+    
+    # 3. Privileged is required for hardware passthrough
+    privileged: true
+    
+    # 4. Use Host Network (Optional, but often easier for USB hotplugging events)
+    # network_mode: host 
+    
+    group_add:
+      - "101" # Your LXD Group ID
+>>>>>>> Stashed changes

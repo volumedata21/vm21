@@ -2,8 +2,11 @@ import React, { useState, useEffect } from 'react';
 
 // --- Services & Types ---
 import { api } from './services/api';
+<<<<<<< Updated upstream
 // Re-added MOCK_HOST_DEVICES here because we haven't built a backend for devices yet
 import { MOCK_HOST_DEVICES } from './services/mockHypervisor'; 
+=======
+>>>>>>> Stashed changes
 import { VirtualMachine, HostDevice, VMStatus, LxcContainer, IsoImage, Snapshot } from './types';
 
 // --- Component Imports ---
@@ -25,9 +28,13 @@ const App: React.FC = () => {
   const [vms, setVms] = useState<VirtualMachine[]>([]);
   const [lxcContainers, setLxcContainers] = useState<LxcContainer[]>([]);
   const [images, setImages] = useState<IsoImage[]>([]);
+<<<<<<< Updated upstream
   const [devices, setDevices] = useState<HostDevice[]>(MOCK_HOST_DEVICES); // This now works
 
   // Selection
+=======
+  const [devices, setDevices] = useState<HostDevice[]>([]);
+>>>>>>> Stashed changes
   const [selectedVmId, setSelectedVmId] = useState<string | null>(null);
   const [selectedLxcId, setSelectedLxcId] = useState<string | null>(null);
 
@@ -44,6 +51,7 @@ const App: React.FC = () => {
   // --- Load Data from Backend ---
   useEffect(() => {
     const loadData = async () => {
+      // 1. Critical Data (VMs, Containers, Images)
       try {
         const [vmsData, lxcData, imagesData] = await Promise.all([
           api.getVms(),
@@ -54,7 +62,17 @@ const App: React.FC = () => {
         setLxcContainers(lxcData);
         setImages(imagesData);
       } catch (err) {
-        console.error("Failed to load data:", err);
+        console.error("CRITICAL: Failed to load VMs/Containers:", err);
+      }
+
+      // 2. Non-Critical Data (USB Devices)
+      // If this fails (e.g. backend not ready), it won't break the dashboard
+      try {
+         const devicesData = await api.getDevices();
+         setDevices(devicesData);
+      } catch (err) {
+         console.warn("Warning: Failed to load USB devices. Is the backend rebuilt?", err);
+         setDevices([]); // Fallback to empty list
       }
     };
     loadData();
@@ -131,30 +149,94 @@ const App: React.FC = () => {
 
   const handleDeleteVm = (id: string) => {
     if (confirm('Are you sure you want to delete this VM? Data will be lost.')) {
+<<<<<<< Updated upstream
       const vm = vms.find(v => v.id === id);
       if (vm) {
         setDevices(prev => prev.map(d =>
           vm.attachedDevices.includes(d.id) ? { ...d, inUseBy: null } : d
         ));
+=======
+      try {
+        await api.deleteInstance(id);
+        
+        setDevices(prev => prev.map(d => 
+            d.inUseBy === id ? { ...d, inUseBy: null } : d
+        ));
+
+        setVms(prev => prev.filter(v => v.id !== id));
+        if (selectedVmId === id) setSelectedVmId(null);
+      } catch (err) {
+        alert("Failed to delete VM. Check console.");
+        console.error(err);
+      }
+    }
+  };
+
+  const handleDeleteLxc = async (id: string) => {
+    if (confirm('Are you sure you want to delete this Container?')) {
+      try {
+        await api.deleteInstance(id);
+        setLxcContainers(prev => prev.filter(c => c.id !== id));
+        if (selectedLxcId === id) setSelectedLxcId(null);
+      } catch (err) {
+        alert("Failed to delete Container. Check console.");
+        console.error(err);
+>>>>>>> Stashed changes
       }
       setVms(prev => prev.filter(v => v.id !== id));
       if (selectedVmId === id) setSelectedVmId(null);
     }
   };
 
-  const handleToggleDevice = (vmId: string, deviceId: string) => {
+  // --- Hardware Attach/Detach ---
+  const handleToggleDevice = async (vmId: string, deviceId: string) => {
     const vm = vms.find(v => v.id === vmId);
-    if (!vm) return;
-    const isAttached = vm.attachedDevices.includes(deviceId);
+    const device = devices.find(d => d.id === deviceId);
     
-    setVms(prev => prev.map(v =>
-      v.id === vmId
-        ? { ...v, attachedDevices: isAttached ? v.attachedDevices.filter(d => d !== deviceId) : [...v.attachedDevices, deviceId] }
-        : v
-    ));
-    setDevices(prev => prev.map(d =>
-      d.id === deviceId ? { ...d, inUseBy: isAttached ? null : vmId } : d
-    ));
+    if (!vm || !device) return;
+
+    // Check if we are attaching or detaching
+    // (We check if the VM thinks it has it, OR if the Device thinks the VM has it)
+    const isAttached = vm.attachedDevices?.includes(deviceId) || device.inUseBy === vm.name;
+
+    try {
+        if (isAttached) {
+            // Detach Logic
+            await api.detachDevice(vmId, deviceId);
+            
+            // Update UI Locally (Optimistic update)
+            setVms(prev => prev.map(v => 
+                v.id === vmId 
+                ? { ...v, attachedDevices: v.attachedDevices.filter(d => d !== deviceId) }
+                : v
+            ));
+            setDevices(prev => prev.map(d => 
+                d.id === deviceId ? { ...d, inUseBy: null } : d
+            ));
+
+        } else {
+            // Attach Logic
+            if (device.inUseBy) {
+                alert(`This device is already in use by ${device.inUseBy}`);
+                return;
+            }
+
+            await api.attachDevice(vmId, device);
+
+            // Update UI Locally (Optimistic update)
+            setVms(prev => prev.map(v => 
+                v.id === vmId 
+                ? { ...v, attachedDevices: [...(v.attachedDevices || []), deviceId] }
+                : v
+            ));
+            setDevices(prev => prev.map(d => 
+                d.id === deviceId ? { ...d, inUseBy: vm.name } : d
+            ));
+        }
+    } catch (err) {
+        console.error(err);
+        alert("Failed to toggle device attachment. Check console.");
+    }
   };
 
   const handleUpdateVmResources = (id: string, cpu: number, ram: number) => {

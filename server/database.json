@@ -5,6 +5,7 @@
       "name": "Seed VM (Persisted)",
       "os": "Ubuntu",
       "status": "Stopped",
+<<<<<<< Updated upstream
       "cpuCores": 2,
       "ramGB": 4,
       "diskSizeGB": 20,
@@ -27,6 +28,72 @@
       "cpuLimit": 2,
       "ramLimit": 4,
       "diskUsage": 0
+=======
+      "cpuCores": 4,
+      "ramGB": 0,
+      "diskSizeGB": 10,
+      "attachedDevices": [],
+      "snapshots": [],
+      "ipAddress": "-"
+    },
+    {
+      "id": "lxd-vm21-test-vm",
+      "name": "vm21-test-vm",
+      "os": "ubuntu",
+      "status": "Running",
+      "cpuCores": 2,
+      "ramGB": 4,
+      "diskSizeGB": 10,
+      "attachedDevices": [],
+      "snapshots": [],
+      "ipAddress": "-"
+    }
+  ],
+  "containers": [
+    {
+      "id": "lxd-minecraft",
+      "name": "minecraft",
+      "distro": "ubuntu",
+      "status": "Running",
+      "ipAddress": "-",
+      "cpuLimit": 1,
+      "ramLimit": 0.5,
+      "diskUsage": 0,
+      "snapshots": []
+    },
+    {
+      "id": "lxd-quorra",
+      "name": "quorra",
+      "distro": "ubuntu",
+      "status": "Stopped",
+      "ipAddress": "-",
+      "cpuLimit": 1,
+      "ramLimit": 0.5,
+      "diskUsage": 0,
+      "snapshots": []
+    },
+    {
+      "id": "lxd-test",
+      "name": "test",
+      "distro": "ubuntu",
+      "status": "Running",
+      "ipAddress": "-",
+      "cpuLimit": 1,
+      "ramLimit": 0.5,
+      "diskUsage": 0,
+      "snapshots": []
+    },
+    {
+      "id": "lxd-vm21-test-container",
+      "name": "vm21-test-container",
+      "distro": "ubuntu",
+      "status": "Running",
+      "ipAddress": "-",
+      "cpuLimit": 1,
+      "ramLimit": 1,
+      "diskUsage": 0,
+      "snapshots": []
+>>>>>>> Stashed changes
     }
   ],
   "containers": [],
